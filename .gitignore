@@ -1,0 +1,49 @@
+model_klasifikasi.h5
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.env
+.env
+.venv/
+.ENV/
+.env/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# TensorFlow models
+model/model_klasifikasi.h5
+
+# Keras training logs
+*.h5
+*.hdf5
+
+# IDE and Editor files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Logs and data files
+*.log
+*.csv
+*.tsv
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# MacOS files
+.DS_Store
+
+# Windows system files
+Thumbs.db
