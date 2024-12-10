@@ -7,6 +7,7 @@ import numpy as np
 import base64
 import os
 from PIL import Image
+from werkzeug.utils import secure_filename
 import logging
 
 # Konfigurasi logging
@@ -38,12 +39,71 @@ def is_image(file_bytes):
         logging.error(f"File verification error: {e}")
         return False
 
-def generate_pdf(predicted_label, confidence):
-    """Menghasilkan PDF dengan hasil prediksi."""
+
+def generate_pdf(image_file):
+    """Menghasilkan PDF dengan hasil prediksi, menyesuaikan ukuran gambar dengan halaman PDF."""
     pdf_buffer = io.BytesIO()
-    c = canvas.Canvas(pdf_buffer)
-    c.drawString(100, 750, f"Predicted Label: {predicted_label}")
-    c.drawString(100, 730, f"Confidence: {confidence:.2f}")
+    
+    # Ukuran halaman PDF standar A4 dalam points (1 inch = 72 points)
+    PAGE_WIDTH = 595.27
+    PAGE_HEIGHT = 841.89
+    
+    # Buat canvas dengan ukuran A4
+    c = canvas.Canvas(pdf_buffer, pagesize=(PAGE_WIDTH, PAGE_HEIGHT))
+    
+    # Tentukan nama file yang aman dan lokasi sementara
+    secure_name = secure_filename(image_file.filename)
+    temp_image_path = f"./tmp/{secure_name}"
+    
+    try:
+        # Pastikan direktori ./tmp ada
+        os.makedirs("./tmp", exist_ok=True)
+        
+        # Simpan file sementara
+        image_file.seek(0)
+        image_file.save(temp_image_path)
+        
+        # Gunakan Pillow untuk mendapatkan ukuran gambar
+        with Image.open(temp_image_path) as img:
+            img_width, img_height = img.size
+            
+            # Hitung rasio aspek gambar
+            aspect_ratio = img_width / img_height
+            
+            # Tentukan margin (dalam points)
+            MARGIN = 40
+            max_width = PAGE_WIDTH - (2 * MARGIN)
+            max_height = PAGE_HEIGHT - (2 * MARGIN)
+            
+            # Hitung ukuran gambar yang disesuaikan
+            if img_width > max_width or img_height > max_height:
+                # Jika gambar terlalu lebar
+                if img_width/max_width > img_height/max_height:
+                    new_width = max_width
+                    new_height = new_width / aspect_ratio
+                # Jika gambar terlalu tinggi
+                else:
+                    new_height = max_height
+                    new_width = new_height * aspect_ratio
+            else:
+                new_width = img_width
+                new_height = img_height
+            
+            # Hitung posisi untuk memusatkan gambar
+            x = (PAGE_WIDTH - new_width) / 2
+            y = (PAGE_HEIGHT - new_height) / 2
+            
+            # Tambahkan gambar ke PDF dengan ukuran yang sudah disesuaikan
+            c.drawImage(temp_image_path, x, y, width=new_width, height=new_height)
+            
+    except Exception as e:
+        raise RuntimeError(f"Error generating PDF: {e}")
+    finally:
+        # Hapus file sementara
+        if os.path.exists(temp_image_path):
+            os.remove(temp_image_path)
+    
+    # Simpan PDF
     c.save()
     pdf_buffer.seek(0)
     return pdf_buffer.read()
@@ -75,8 +135,14 @@ def process_image():
         # Dapatkan nama label berdasarkan indeks
         label_name = LABEL_MAP_REVERSE.get(predicted_label_idx, "Unknown")
 
+        # Tentukan folder berdasarkan label
+        if label_name in ['KTP', 'KK', 'SIM']:
+            folder_name = "Pribadi"
+        else:
+            folder_name = "Lainnya"
+
         # Buat PDF
-        pdf_data = generate_pdf(label_name, confidence)
+        pdf_data = generate_pdf(image_file)
 
         # Konversi PDF ke Base64 untuk dikembalikan
         pdf_base64 = base64.b64encode(pdf_data).decode('utf-8')
@@ -85,7 +151,8 @@ def process_image():
         return jsonify({
             "predicted_label": label_name,
             "confidence": float(confidence),
-            "pdfData": pdf_base64
+            "pdfData": pdf_base64,
+            "folder_name": folder_name
         })
 
     except Exception as e:
