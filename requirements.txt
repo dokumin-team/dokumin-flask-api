@@ -1,5 +1,9 @@
-Flask
-tensorflow
-numpy
-opencv-python
-fpdf
+Flask==2.3.2
+tensorflow==2.18.0
+numpy==1.26.2
+opencv-python==4.10.0.84
+scikit-learn==1.3.2
+Matplotlib==3.8.2
+reportlab
+Pillow
+python-dotenv
